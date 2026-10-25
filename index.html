@@ -4,6 +4,14 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#101a31">
+  <meta name="description" content="好运摇号机：大乐透与双色球在线选号，浏览器加密随机数生成，逐球揭晓动画，记录仅保存在本机。">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="好运摇号机 · 大乐透与双色球选号">
+  <meta property="og:description" content="轻轻一点，让好运自然发生。加密随机数生成，同一区号码不重复，记录仅保存在本机。">
+  <meta property="og:url" content="https://nebula-dve.github.io/lottery-machine/">
+  <meta property="og:locale" content="zh_CN">
+  <meta name="twitter:card" content="summary">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='9' fill='%23edbd70'/%3E%3Ctext x='16' y='23' font-size='19' text-anchor='middle' fill='%2318233a'%3E%E2%9C%A6%3C/text%3E%3C/svg%3E">
   <title>好运摇号机</title>
   <style>
     :root{color-scheme:dark;--bg:#101a31;--panel:#192743;--line:#ffffff1c;--muted:#97a5bd;--gold:#edbd70;--red:#e95350;--blue:#527bd6;font-family:system-ui,-apple-system,"PingFang SC","Microsoft YaHei",sans-serif}
@@ -29,14 +37,14 @@
       <section class="intro"><div class="eyebrow">A LITTLE MOMENT OF LUCK</div><h1>每一次随机，都值得期待</h1><p>轻轻一点，让好运自然发生。</p></section>
       <div class="layout">
         <section class="card draw" id="drawCard" aria-label="摇号区域">
-          <div class="draw-head"><span class="label">选择摇号玩法</span><div class="select-wrap"><select id="gameSelect" aria-label="选择摇号玩法"><option value="dlt">超级大乐透 · 前区 5 + 后区 2</option><option value="custom">自定义演示 · 6 蓝 + 1 红</option></select></div></div>
+          <div class="draw-head"><span class="label">选择摇号玩法</span><div class="select-wrap"><select id="gameSelect" aria-label="选择摇号玩法"><option value="dlt">超级大乐透 · 前区 5 + 后区 2</option><option value="ssq">双色球 · 红球 6 + 蓝球 1</option></select></div></div>
           <div class="machine"><div class="ring"></div><div class="balls" id="balls" aria-live="polite"></div></div>
           <div class="stage" id="stage">准备就绪，等待开启这一轮</div>
           <div class="actions"><button class="primary" id="drawButton" type="button">开始摇号</button><button class="secondary" id="resetButton" type="button">清空当前</button></div>
         </section>
         <aside class="side">
           <section class="card history-card"><div class="side-title"><h2>本机摇号记录</h2><button class="clear" id="clearHistory" type="button">清空记录</button></div><div class="history" id="history"></div></section>
-          <section class="card rules"><div class="side-title"><h2>玩法说明</h2><span style="color:#8f9db4;font:10px ui-monospace">DRAW RULES</span></div><ul class="rule-list" id="rules"></ul><div class="note">号码由浏览器加密随机数生成，同一区不重复。记录仅保存在当前浏览器。</div></section>
+          <section class="card rules"><div class="side-title"><h2>玩法说明</h2><span style="color:#8f9db4;font:10px ui-monospace">DRAW RULES</span></div><ul class="rule-list" id="rules"></ul><div class="note">号码由浏览器随机数生成（优先使用加密随机数），同一区不重复。记录仅保存在当前浏览器。</div></section>
         </aside>
       </div>
       <footer class="footer"><span>娱乐与活动抽奖用途 · 本页面不属于官方彩票发行或开奖系统</span><span>RANDOM DRAW / 01</span></footer>
@@ -45,23 +53,27 @@
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
   <script>
     (()=>{
+      const HISTORY_LIMIT=20;
       const games={
-        dlt:{front:5,frontMax:35,back:2,backMax:12,frontName:'前区',backName:'后区',frontColor:'neutral',backColor:'blue'},
-        custom:{front:6,frontMax:33,back:1,backMax:16,frontName:'蓝球',backName:'红球',frontColor:'blue',backColor:'red'}
+        dlt:{front:5,frontMax:35,back:2,backMax:12,frontName:'前区',backName:'后区',frontColor:'neutral',backColor:'blue',label:'大乐透'},
+        ssq:{front:6,frontMax:33,back:1,backMax:16,frontName:'红球',backName:'蓝球',frontColor:'red',backColor:'blue',label:'双色球'}
       };
+      const legacy={custom:{frontName:'蓝球',backName:'红球',frontColor:'blue',backColor:'red',label:'自定义演示'}};
+      const historyColors={dlt:{front:'',back:'blue'},ssq:{front:'red',back:'blue'},custom:{front:'blue',back:'red'}};
       const $=id=>document.getElementById(id),gameSelect=$('gameSelect'),ballsEl=$('balls'),stageEl=$('stage'),drawButton=$('drawButton'),historyEl=$('history'),rulesEl=$('rules'),drawCard=$('drawCard'),toastEl=$('toast');
       let busy=false,toastTimer,history=loadHistory();
-      function loadHistory(){try{const data=JSON.parse(localStorage.getItem('lucky-draw-history-v1')||'[]');return Array.isArray(data)?data.slice(0,20):[]}catch{return[]}}
-      function saveHistory(){try{localStorage.setItem('lucky-draw-history-v1',JSON.stringify(history.slice(0,20)))}catch{showToast('浏览器未能保存记录')}}
+      function loadHistory(){try{const data=JSON.parse(localStorage.getItem('lucky-draw-history-v1')||'[]');return Array.isArray(data)?data.slice(0,HISTORY_LIMIT):[]}catch{return[]}}
+      function saveHistory(){try{localStorage.setItem('lucky-draw-history-v1',JSON.stringify(history.slice(0,HISTORY_LIMIT)))}catch{showToast('浏览器未能保存记录')}}
       const game=()=>games[gameSelect.value],fmt=n=>String(n).padStart(2,'0'),wait=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-      function randomInt(max){const ceiling=Math.floor(0x100000000/max)*max,data=new Uint32Array(1);let value;do{crypto.getRandomValues(data);value=data[0]}while(value>=ceiling);return value%max}
+      function hasCrypto(){return typeof crypto!=='undefined'&&typeof crypto.getRandomValues==='function'}
+      function randomInt(max){const ceiling=Math.floor(0x100000000/max)*max;let value;if(hasCrypto()){const data=new Uint32Array(1);do{crypto.getRandomValues(data);value=data[0]}while(value>=ceiling);return value%max}do{value=Math.floor(Math.random()*0x100000000)}while(value>=ceiling);return value%max}
       function sample(max,count){const pool=Array.from({length:max},(_,i)=>i+1);for(let i=0;i<count;i++){const j=i+randomInt(max-i);[pool[i],pool[j]]=[pool[j],pool[i]]}return pool.slice(0,count).sort((a,b)=>a-b)}
       function ball(text,color,empty=false,drawn=false){const el=document.createElement('span');el.className=`ball${color==='red'?' red':color==='blue'?' blue':''}${empty?' empty':''}${drawn?' pop':''}`;el.textContent=text;if(empty)el.setAttribute('aria-hidden','true');return el}
       function renderBalls(front=[],back=[]){const g=game();ballsEl.replaceChildren();for(let i=0;i<g.front;i++){const n=front[i];ballsEl.append(ball(n?fmt(n):'·',g.frontColor,!n,Boolean(n)))}const sep=document.createElement('span');sep.setAttribute('aria-hidden','true');sep.style.cssText='width:8px;height:1px;background:#d2b57b66;margin:0 2px';ballsEl.append(sep);for(let i=0;i<g.back;i++){const n=back[i];ballsEl.append(ball(n?fmt(n):'·',g.backColor,!n,Boolean(n)))}}
-      function renderRules(){const g=game(),note=gameSelect.value==='custom'?'<li>自定义颜色演示；官方双色球规则为 6 红 + 1 蓝。</li>':'';rulesEl.innerHTML=`<li><strong>${g.frontName}</strong>：从 01–${fmt(g.frontMax)} 中摇出 ${g.front} 个号码。</li><li><strong>${g.backName}</strong>：从 01–${fmt(g.backMax)} 中摇出 ${g.back} 个号码。</li><li>同一区号码不重复，结果按从小到大排列。</li>${note}`}
-      function renderHistory(){if(!history.length){historyEl.innerHTML='<div class="empty-history">还没有摇号记录<br>你的第一组幸运号码即将诞生</div>';return}historyEl.replaceChildren();history.slice(0,20).forEach((item,index)=>{const row=document.createElement('div');row.className='row';const idx=document.createElement('span');idx.className='idx';idx.textContent=`#${String(index+1).padStart(2,'0')}`;const chips=document.createElement('div');chips.className='chips';const reverse=item.game==='custom';item.front.forEach(n=>{const c=document.createElement('span');c.className=`chip${reverse?' blue':item.game==='ssq'?' red':''}`;c.textContent=fmt(n);chips.append(c)});item.back.forEach(n=>{const c=document.createElement('span');c.className=`chip${reverse?' red':' blue'}`;c.textContent=fmt(n);chips.append(c)});const when=document.createElement('span');when.className='when';const label=item.game==='dlt'?'大乐透':item.game==='custom'?'自定义 6蓝1红':'双色球';when.textContent=`${label} · ${new Date(item.at).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}`;row.append(idx,chips,when);historyEl.append(row)})}
+      function renderRules(){const g=game();rulesEl.innerHTML=`<li><strong>${g.frontName}</strong>：从 01–${fmt(g.frontMax)} 中摇出 ${g.front} 个号码。</li><li><strong>${g.backName}</strong>：从 01–${fmt(g.backMax)} 中摇出 ${g.back} 个号码。</li><li>同一区号码不重复，结果按从小到大排列。</li>`}
+      function renderHistory(){if(!history.length){historyEl.innerHTML='<div class="empty-history">还没有摇号记录<br>你的第一组幸运号码即将诞生</div>';return}historyEl.replaceChildren();history.slice(0,HISTORY_LIMIT).forEach((item,index)=>{const row=document.createElement('div');row.className='row';const idx=document.createElement('span');idx.className='idx';idx.textContent=`#${String(index+1).padStart(2,'0')}`;const chips=document.createElement('div');chips.className='chips';const cols=historyColors[item.game]||{front:'',back:'blue'};const chipOf=(n,color)=>{const c=document.createElement('span');c.className=`chip${color?' '+color:''}`;c.textContent=fmt(n);return c};item.front.forEach(n=>chips.append(chipOf(n,cols.front)));item.back.forEach(n=>chips.append(chipOf(n,cols.back)));const when=document.createElement('span');when.className='when';const meta=games[item.game]||legacy[item.game]||{label:'历史记录'};when.textContent=`${meta.label} · ${new Date(item.at).toLocaleString('zh-CN',{month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hour12:false})}`;row.append(idx,chips,when);historyEl.append(row)})}
       function showToast(message){toastEl.textContent=message;toastEl.classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>toastEl.classList.remove('show'),2200)}
-      async function draw(){if(busy)return;busy=true;drawButton.disabled=true;drawButton.textContent='摇号中…';drawCard.classList.add('spinning');const key=gameSelect.value,g=game(),front=sample(g.frontMax,g.front),back=sample(g.backMax,g.back);renderBalls();const gotFront=[],gotBack=[];for(let i=0;i<front.length;i++){stageEl.innerHTML=`正在摇出 <b>${g.frontName} ${i+1} / ${g.front}</b>`;await wait(520);gotFront.push(front[i]);renderBalls(gotFront,gotBack)}for(let i=0;i<back.length;i++){stageEl.innerHTML=`正在摇出 <b>${g.backName} ${i+1} / ${g.back}</b>`;await wait(520);gotBack.push(back[i]);renderBalls(gotFront,gotBack)}drawCard.classList.remove('spinning');stageEl.innerHTML='<b>本轮摇号完成</b> · 好运已就位';history.unshift({game:key,front,back,at:Date.now()});history=history.slice(0,20);saveHistory();renderHistory();drawButton.disabled=false;drawButton.textContent='再摇一次';busy=false}
+      async function draw(){if(busy)return;busy=true;drawButton.disabled=true;drawButton.textContent='摇号中…';drawCard.classList.add('spinning');try{if(!hasCrypto())showToast('当前浏览器不支持加密随机数，已回退为普通随机数');const key=gameSelect.value,g=game(),front=sample(g.frontMax,g.front),back=sample(g.backMax,g.back);renderBalls();const gotFront=[],gotBack=[];for(let i=0;i<front.length;i++){stageEl.innerHTML=`正在摇出 <b>${g.frontName} ${i+1} / ${g.front}</b>`;await wait(520);gotFront.push(front[i]);renderBalls(gotFront,gotBack)}for(let i=0;i<back.length;i++){stageEl.innerHTML=`正在摇出 <b>${g.backName} ${i+1} / ${g.back}</b>`;await wait(520);gotBack.push(back[i]);renderBalls(gotFront,gotBack)}stageEl.innerHTML='<b>本轮摇号完成</b> · 好运已就位';history.unshift({game:key,front,back,at:Date.now()});history=history.slice(0,HISTORY_LIMIT);saveHistory();renderHistory()}catch(err){stageEl.textContent='摇号过程出现异常，请重试';showToast('摇号失败：'+(err&&err.message?err.message:err))}finally{drawCard.classList.remove('spinning');drawButton.disabled=false;drawButton.textContent='再摇一次';busy=false}}
       gameSelect.addEventListener('change',()=>{if(busy)return;renderRules();renderBalls();stageEl.textContent='玩法已切换，准备开始新一轮';drawButton.textContent='开始摇号'});drawButton.addEventListener('click',draw);$('resetButton').addEventListener('click',()=>{if(busy)return;renderBalls();stageEl.textContent='当前号码已清空，等待开启新一轮';drawButton.textContent='开始摇号'});$('clearHistory').addEventListener('click',()=>{if(!history.length){showToast('记录已经是空的');return}history=[];saveHistory();renderHistory();showToast('本机摇号记录已清空')});renderRules();renderBalls();renderHistory();
     })();
   </script>
